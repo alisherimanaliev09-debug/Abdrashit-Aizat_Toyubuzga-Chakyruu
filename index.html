@@ -674,48 +674,65 @@ function doOpen(){
       spawnPetals();
       startMusic();
 
-      // Прокрутка с остановкой на каждом разделе
+      // Пауза 5 сек, потом медленно до конца
       setTimeout(function() {
-        var sections = ['hero', 'about', 'date', 'location', 'parents'];
-        var currentSection = 0;
-
-        function scrollToSection(idx) {
-          if (idx >= sections.length) return;
-
-          var el = document.getElementById(sections[idx]);
-          if (!el) { scrollToSection(idx + 1); return; }
-
-          var targetY = el.getBoundingClientRect().top + window.scrollY;
-          var startY = window.scrollY;
-          var distance = targetY - startY;
-          var duration = Math.min(Math.max(Math.abs(distance) / 0.25, 1200), 2500);
+        setTimeout(function() {
+          var autoScrolling = false;
+          var resumeTimer = null;
+          var animFrame = null;
+          var startY = 0;
           var startTime = null;
+          var elapsed = 0;
+          var speed = (document.body.scrollHeight - window.innerHeight) / 24; // px за секунду
 
-          function ease(t) {
-            return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-          }
+          function startAuto() {
+            autoScrolling = true;
+            startY = window.scrollY;
+            startTime = null;
 
-          function step(currentTime) {
-            if (!startTime) startTime = currentTime;
-            var elapsed = currentTime - startTime;
-            var progress = Math.min(elapsed / duration, 1);
-            window.scrollTo(0, startY + distance * ease(progress));
-            if (progress < 1) {
-              requestAnimationFrame(step);
-            } else {
-              // Пауза на разделе: герой 1.5с, остальные 2.5с
-              var pause = idx === 0 ? 1500 : 2500;
-              setTimeout(function() {
-                scrollToSection(idx + 1);
-              }, pause);
+            function step(ts) {
+              if (!autoScrolling) return;
+              if (!startTime) startTime = ts;
+              var dt = (ts - startTime) / 1000;
+              var target = startY + speed * dt;
+              var max = document.body.scrollHeight - window.innerHeight;
+              if (target >= max) { window.scrollTo(0, max); autoScrolling = false; return; }
+              window.scrollTo(0, target);
+              animFrame = requestAnimationFrame(step);
             }
+            animFrame = requestAnimationFrame(step);
           }
 
-          requestAnimationFrame(step);
-        }
+          function stopAuto() {
+            autoScrolling = false;
+            if (animFrame) cancelAnimationFrame(animFrame);
+            if (resumeTimer) clearTimeout(resumeTimer);
+            // Через 2 секунды после того как убрал палец — продолжаем
+            resumeTimer = setTimeout(function() {
+              if (!autoScrolling) startAuto();
+            }, 2000);
+          }
 
-        scrollToSection(1); // начинаем со второго раздела (about)
-      }, 1400);
+          // Слушаем касания и колёсико
+          var touching = false;
+          window.addEventListener('touchstart', function() {
+            touching = true;
+            stopAuto();
+          }, {passive: true});
+          window.addEventListener('touchend', function() {
+            touching = false;
+            // stopAuto уже запустил таймер 2 сек
+          }, {passive: true});
+          window.addEventListener('wheel', function() {
+            stopAuto();
+          }, {passive: true});
+          window.addEventListener('keydown', function(e) {
+            if ([32,33,34,35,36,38,40].indexOf(e.keyCode) > -1) stopAuto();
+          });
+
+          startAuto();
+        }, 3000);
+      }, 1200);
 
     }, 650);
   }, 1100);
