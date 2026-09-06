@@ -674,6 +674,49 @@ function doOpen(){
       spawnPetals();
       startMusic();
 
+      // Прокрутка с остановкой на каждом разделе
+      setTimeout(function() {
+        var sections = ['hero', 'about', 'date', 'location', 'parents'];
+        var currentSection = 0;
+
+        function scrollToSection(idx) {
+          if (idx >= sections.length) return;
+
+          var el = document.getElementById(sections[idx]);
+          if (!el) { scrollToSection(idx + 1); return; }
+
+          var targetY = el.getBoundingClientRect().top + window.scrollY;
+          var startY = window.scrollY;
+          var distance = targetY - startY;
+          var duration = Math.min(Math.max(Math.abs(distance) / 0.25, 1200), 2500);
+          var startTime = null;
+
+          function ease(t) {
+            return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+          }
+
+          function step(currentTime) {
+            if (!startTime) startTime = currentTime;
+            var elapsed = currentTime - startTime;
+            var progress = Math.min(elapsed / duration, 1);
+            window.scrollTo(0, startY + distance * ease(progress));
+            if (progress < 1) {
+              requestAnimationFrame(step);
+            } else {
+              // Пауза на разделе: герой 1.5с, остальные 2.5с
+              var pause = idx === 0 ? 1500 : 2500;
+              setTimeout(function() {
+                scrollToSection(idx + 1);
+              }, pause);
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+
+        scrollToSection(1); // начинаем со второго раздела (about)
+      }, 1400);
+
     }, 650);
   }, 1100);
 }
